@@ -11,8 +11,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- FontAwesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <!-- Google Identity Services (GSI) SDK -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- jsPDF Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <!-- SheetJS Library -->
@@ -39,7 +37,7 @@
       </div>
       <div class="header-actions">
         <span id="oauth-status-badge" class="badge-status">
-          <i class="fa-solid fa-shield-halved"></i> Giao Diện Cổ Điển Active
+          <i class="fa-solid fa-bolt"></i> Auto Engine Active
         </span>
       </div>
     </header>
@@ -60,7 +58,7 @@
       </button>
     </nav>
 
-    <!-- TAB 1: In-App PDF Render Engine (Instant Seamless Extraction) -->
+    <!-- TAB 1: In-App PDF Render Engine (Instant Automatic Extraction) -->
     <section id="tab-pdf-engine" class="tab-content active">
       <div class="card classic-card">
         <div class="card-header">
@@ -82,14 +80,6 @@
         <div id="pdf-loader" class="loader-box hidden">
           <div class="spinner"></div>
           <p id="pdf-loader-text">Đang bóc tách và giải mã các trang PDF...</p>
-        </div>
-
-        <!-- 1-Click Login Prompt if File Requires Google API Authorization -->
-        <div id="oauth-login-prompt" class="method-card mb-20 hidden" style="border-color: #92400e; background: #fffbeb;">
-          <div class="method-badge"><i class="fa-solid fa-lock"></i> File Yêu Cầu Quyền Đọc Dữ Liệu</div>
-          <h3>Xác Thực Đăng Nhập 1-Click Bằng Google</h3>
-          <p>Tệp này yêu cầu xác thực phiên đăng nhập của Google để xuất luồng file nguyên bản. Bấm nút bên dưới để xác thực nhanh trong 2 giây:</p>
-          <button id="btn-google-login" class="btn btn-primary mt-10"><i class="fa-brands fa-google"></i> 🔑 Đăng Nhập Google Để Tải File Ngay (1-Click)</button>
         </div>
 
         <div id="pdf-result-box" class="result-box hidden">
