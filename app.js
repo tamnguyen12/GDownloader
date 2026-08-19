@@ -1,6 +1,6 @@
 /**
  * Google Drive Ultimate Converter & Downloader - Classic Edition
- * Invisible OAuth2 Engine & Multi-Page PDF Extractor
+ * Robust Multi-Proxy GView & ViewerNG PDF Bypass Engine
  */
 
 let userAccessToken = null;
@@ -79,13 +79,14 @@ function loadImage(src) {
 }
 
 // ==========================================
-// Untainted Proxy Image Fetcher
+// Robust Multi-Proxy Untainted Image Fetcher
 // ==========================================
 async function fetchUntaintedImage(targetUrl) {
   const proxyEndpoints = [
-    `/api/proxy?url=${encodeURIComponent(targetUrl)}`,
     `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+    `/api/proxy?url=${encodeURIComponent(targetUrl)}`
   ];
 
   for (let pUrl of proxyEndpoints) {
@@ -102,7 +103,7 @@ async function fetchUntaintedImage(targetUrl) {
         }
       }
     } catch (e) {
-      console.warn("Proxy fetch untainted image failed:", pUrl, e);
+      console.warn("Proxy attempt failed:", pUrl, e);
     }
   }
   return null;
@@ -116,8 +117,29 @@ async function extractBlockedPdfPages(docId, updateProgressCallback) {
   let pdf = null;
   let pageCount = 0;
 
-  // Channel 1: Google Public GView Page Renderer
-  for (let page = 0; page < 60; page++) {
+  // Channel 1: High-Res Single Page Render (Thumbnail Engine - Highest Reliability)
+  if (updateProgressCallback) updateProgressCallback("Đang bóc tách bản xem trước chất lượng cao...");
+  const thumbUrl = `https://drive.google.com/thumbnail?id=${docId}&sz=w2000`;
+  const resultData = await fetchUntaintedImage(thumbUrl);
+
+  if (resultData && resultData.img) {
+    const { img } = resultData;
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext("2d");
+
+    ctx.drawImage(img, 0, 0, img.width, img.height);
+    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+    const orientation = img.width > img.height ? "l" : "p";
+    pdf = new jsPDF({ orientation, unit: "px", format: [img.width, img.height], hotfixes: ["px_scaling"] });
+    pdf.addImage(imgData, "JPEG", 0, 0, img.width, img.height);
+
+    return { pdfBlob: pdf.output("blob"), pageCount: 1 };
+  }
+
+  // Channel 2: Google Public GView Page Renderer (pagenumber = 0, 1, 2...)
+  for (let page = 0; page < 40; page++) {
     if (updateProgressCallback) updateProgressCallback(`Đang bóc tách trang PDF thứ ${page + 1}...`);
 
     const gviewUrl = `https://docs.google.com/gview?url=https://drive.google.com/uc?id=${docId}&export=download&a=bi&pagenumber=${page}&w=1600`;
@@ -149,27 +171,6 @@ async function extractBlockedPdfPages(docId, updateProgressCallback) {
 
   if (pdf && pageCount > 0) {
     return { pdfBlob: pdf.output("blob"), pageCount };
-  }
-
-  // Channel 2: High-Res Single Page Thumbnail Render
-  if (updateProgressCallback) updateProgressCallback("Đang bóc tách bản xem trước chất lượng cao...");
-  const thumbUrl = `https://drive.google.com/thumbnail?id=${docId}&sz=w2000`;
-  const resultData = await fetchUntaintedImage(thumbUrl);
-
-  if (resultData && resultData.img) {
-    const { img } = resultData;
-    const canvas = document.createElement("canvas");
-    canvas.width = img.width;
-    canvas.height = img.height;
-    const ctx = canvas.getContext("2d");
-
-    ctx.drawImage(img, 0, 0, img.width, img.height);
-    const imgData = canvas.toDataURL("image/jpeg", 0.95);
-    const orientation = img.width > img.height ? "l" : "p";
-    const pdf = new jsPDF({ orientation, unit: "px", format: [img.width, img.height], hotfixes: ["px_scaling"] });
-    pdf.addImage(imgData, "JPEG", 0, 0, img.width, img.height);
-
-    return { pdfBlob: pdf.output("blob"), pageCount: 1 };
   }
 
   // Channel 3: Official Google Drive REST API Download (With Invisible OAuth Token if available)
@@ -260,9 +261,8 @@ function initPdfEngine() {
       });
 
       if (!result || !result.pdfBlob) {
-        // Show 1-Click Login Prompt if file is strictly restricted
         loginPrompt.classList.remove("hidden");
-        throw new Error("File này yêu cầu quyền đọc dữ liệu. Vui lòng bấm nút '🔑 Đăng Nhập Google' bên dưới để xuất file 1-click!");
+        throw new Error("File này yêu cầu quyền đăng nhập tài khoản. Vui lòng bấm nút '🔑 Đăng Nhập Google' bên dưới để xuất file ngay!");
       }
 
       const { pdfBlob, pageCount } = result;
@@ -305,9 +305,10 @@ function parseStream(e) {
 
 async function getLinkVideoGDriveFromDocId(docid) {
   const corsProxies = [
-    "/api/proxy?url=",
     "https://corsproxy.io/?",
+    "https://api.codetabs.com/v1/proxy?quest=",
     "https://api.allorigins.win/raw?url=",
+    "/api/proxy?url=",
     ""
   ];
 
