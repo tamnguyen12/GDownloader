@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GDrive Ultimate Downloader - Công Cụ Tải File Google Drive Classic</title>
+  <meta name="description" content="Công cụ trực tuyến tải file PDF bị khóa nút download, Video MP4, Document, Sheet từ Google Drive với giao diện cổ điển sang trọng.">
+  <!-- Google Fonts: Lora (Classic Serif) & Source Sans 3 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Google Identity Services (GSI) SDK -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- jsPDF Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- SheetJS Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="classic-theme">
+
+  <div class="app-container">
+    <!-- TOP ADVERTISEMENT SLOT -->
+    <div class="ad-slot ad-slot-top" id="ad-top">
+      <div class="ad-placeholder"><i class="fa-solid fa-rectangle-ad"></i> Khung Quảng Cáo Header (Top Ad Banner)</div>
+    </div>
+
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <i class="fa-solid fa-book-bookmark logo-icon"></i>
+        <div class="logo-text">
+          <h1>GDrive Downloader <span>CLASSIC PRO</span></h1>
+          <p>Tải 100% Tệp PDF Bị Khóa Nút Download, Video MP4 & Tài Liệu Google Drive</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span id="oauth-status-badge" class="badge-status">
+          <i class="fa-solid fa-shield-halved"></i> Giao Diện Cổ Điển Active
+        </span>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="tab-pdf-engine">
+        <i class="fa-solid fa-file-pdf"></i> Tải PDF Bị Khóa Download
+      </button>
+      <button class="tab-btn" data-tab="tab-video-engine">
+        <i class="fa-solid fa-film"></i> Tải Video MP4 Về Máy
+      </button>
+      <button class="tab-btn" data-tab="tab-sheet-engine">
+        <i class="fa-solid fa-table"></i> Sheet -> Excel (.xlsx)
+      </button>
+      <button class="tab-btn" data-tab="tab-direct">
+        <i class="fa-solid fa-link"></i> Export Links
+      </button>
+    </nav>
+
+    <!-- TAB 1: In-App PDF Render Engine (Instant Seamless Extraction) -->
+    <section id="tab-pdf-engine" class="tab-content active">
+      <div class="card classic-card">
+        <div class="card-header">
+          <i class="fa-solid fa-file-pdf card-icon"></i>
+          <div>
+            <h2>Tải File PDF Bị Khóa Nút Download</h2>
+            <p>Dán đường dẫn Google Drive PDF bất kỳ bị khóa nút tải xuống để chuyển đổi thành tệp PDF hoàn chỉnh tải về máy.</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="pdf-url-input"><i class="fa-solid fa-compass"></i> Nhập URL File PDF Google Drive Bị Chặn:</label>
+          <div class="input-with-button">
+            <input type="text" id="pdf-url-input" placeholder="https://drive.google.com/file/d/1xxxxxx/view">
+            <button id="btn-process-pdf" class="btn btn-primary"><i class="fa-solid fa-feather-pointed"></i> Bắt Đầu Tải PDF</button>
+          </div>
+        </div>
+
+        <div id="pdf-loader" class="loader-box hidden">
+          <div class="spinner"></div>
+          <p id="pdf-loader-text">Đang bóc tách và giải mã các trang PDF...</p>
+        </div>
+
+        <!-- 1-Click Login Prompt if File Requires Google API Authorization -->
+        <div id="oauth-login-prompt" class="method-card mb-20 hidden" style="border-color: #92400e; background: #fffbeb;">
+          <div class="method-badge"><i class="fa-solid fa-lock"></i> File Yêu Cầu Quyền Đọc Dữ Liệu</div>
+          <h3>Xác Thực Đăng Nhập 1-Click Bằng Google</h3>
+          <p>Tệp này yêu cầu xác thực phiên đăng nhập của Google để xuất luồng file nguyên bản. Bấm nút bên dưới để xác thực nhanh trong 2 giây:</p>
+          <button id="btn-google-login" class="btn btn-primary mt-10"><i class="fa-brands fa-google"></i> 🔑 Đăng Nhập Google Để Tải File Ngay (1-Click)</button>
+        </div>
+
+        <div id="pdf-result-box" class="result-box hidden">
+          <div class="pdf-status-banner">
+            <i class="fa-solid fa-circle-check status-icon"></i>
+            <div>
+              <h3 id="pdf-result-title">Đã Tạo Thành Công File PDF!</h3>
+              <p id="pdf-result-sub">Tệp PDF đã sẵn sàng để tải xuống.</p>
+            </div>
+          </div>
+
+          <!-- IN-RESULT ADVERTISEMENT SLOT -->
+          <div class="ad-slot ad-slot-middle mt-15">
+            <div class="ad-placeholder"><i class="fa-solid fa-rectangle-ad"></i> Khung Quảng Cáo Kết Quả (Result Ad Banner)</div>
+          </div>
+
+          <div class="action-buttons-group mt-20">
+            <a id="btn-download-pdf-blob" href="#" download="gdrive_downloaded.pdf" class="btn btn-primary btn-full"><i class="fa-solid fa-circle-arrow-down"></i> Tải File PDF Về Máy Ngay</a>
+          </div>
+        </div>
+
+        <!-- Embedded Interactive Workspace -->
+        <div class="workspace-section mt-25">
+          <h3><i class="fa-solid fa-display"></i> Cửa Sổ Xem Trước & Workspace Live View</h3>
+          <div class="iframe-container">
+            <iframe id="pdf-preview-iframe" src="about:blank" title="GDrive Document Preview"></iframe>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: Video MP4 Engine -->
+    <section id="tab-video-engine" class="tab-content">
+      <div class="card classic-card">
+        <div class="card-header">
+          <i class="fa-solid fa-video card-icon"></i>
+          <div>
+            <h2>Tải Video MP4 Google Drive Về Máy</h2>
+            <p>Bóc tách luồng video Google Drive, hỗ trợ các độ phân giải 1080p, 720p, 480p, 360p.</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="video-url-input"><i class="fa-solid fa-file-video"></i> Nhập URL Video Google Drive hoặc ID Video:</label>
+          <div class="input-with-button">
+            <input type="text" id="video-url-input" placeholder="https://drive.google.com/file/d/1xxxxxx/view">
+            <button id="btn-extract-video" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Bóc Tách Link Video</button>
+          </div>
+        </div>
+
+        <div id="video-loader" class="loader-box hidden">
+          <div class="spinner"></div>
+          <p id="video-loader-text">Đang kết nối luồng dữ liệu video...</p>
+        </div>
+
+        <div id="video-result-box" class="result-box hidden">
+          <div class="video-preview-wrapper">
+            <div class="video-player-container">
+              <video id="main-video-player" controls poster=""></video>
+            </div>
+            <div class="video-info-panel">
+              <h3 id="video-title"><i class="fa-solid fa-film"></i> Tên Video</h3>
+              <p class="sub-text">Bấm nút bên dưới để tải trực tiếp file MP4 về máy tính:</p>
+              <div id="video-downloads-container" class="qualities-list">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Sheet to Excel Engine -->
+    <section id="tab-sheet-engine" class="tab-content">
+      <div class="card classic-card">
+        <div class="card-header">
+          <i class="fa-solid fa-file-excel card-icon"></i>
+          <div>
+            <h2>Trích Bảng Google Sheet -> File Excel (.xlsx)</h2>
+            <p>Tự động bóc tách dữ liệu từ các bản Google Sheet bị khóa và chuyển đổi thành file Excel (.xlsx) tải trực tiếp.</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="sheet-url-input"><i class="fa-solid fa-table"></i> Nhập URL Google Sheet:</label>
+          <div class="input-with-button">
+            <input type="text" id="sheet-url-input" placeholder="https://docs.google.com/spreadsheets/d/1xxxxxx/edit">
+            <button id="btn-extract-sheet" class="btn btn-primary"><i class="fa-solid fa-file-export"></i> Chuyển Đổi Sang Excel</button>
+          </div>
+        </div>
+
+        <div id="sheet-loader" class="loader-box hidden">
+          <div class="spinner"></div>
+          <p id="sheet-loader-text">Đang tải cấu trúc bảng dữ liệu...</p>
+        </div>
+
+        <div id="sheet-result-box" class="result-box hidden">
+          <div class="pdf-status-banner">
+            <i class="fa-solid fa-file-excel status-icon"></i>
+            <div>
+              <h3>Đã Trích Xuất Thành Công Bảng Dữ Liệu!</h3>
+              <p>Dữ liệu đã được đóng gói thành file Excel (.xlsx) chuẩn.</p>
+            </div>
+          </div>
+          <div class="action-buttons-group mt-20">
+            <button id="btn-download-xlsx" class="btn btn-primary btn-full"><i class="fa-solid fa-download"></i> Tải File Excel (.xlsx) Về Máy</button>
+          </div>
+          <div class="table-container mt-20">
+            <h3><i class="fa-solid fa-eye"></i> Bảng Xem Trước Dữ Liệu</h3>
+            <table class="data-table" id="sheet-preview-table">
+              <!-- Injected via JS -->
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: Direct Export Links -->
+    <section id="tab-direct" class="tab-content">
+      <div class="card classic-card">
+        <div class="card-header">
+          <i class="fa-solid fa-link card-icon"></i>
+          <div>
+            <h2>Tạo Link Export Trực Tiếp</h2>
+            <p>Tạo các link tải nhanh cho Google Docs, Sheets, Slides sang định dạng mong muốn.</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="direct-url-input"><i class="fa-solid fa-globe"></i> Nhập URL Google Drive / File ID:</label>
+          <div class="input-with-button">
+            <input type="text" id="direct-url-input" placeholder="https://drive.google.com/file/d/1xxxxxx/view">
+            <button id="btn-gen-direct" class="btn btn-primary"><i class="fa-solid fa-wand-magic-sparkles"></i> Tạo Link Export</button>
+          </div>
+        </div>
+
+        <div id="direct-result-box" class="result-box hidden">
+          <div class="result-grid" id="direct-links-grid">
+            <!-- Dynamic JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BOTTOM ADVERTISEMENT SLOT -->
+    <div class="ad-slot ad-slot-bottom mt-20" id="ad-bottom">
+      <div class="ad-placeholder"><i class="fa-solid fa-rectangle-ad"></i> Khung Quảng Cáo Footer (Bottom Ad Banner)</div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>GDrive Downloader Classic Edition | Elegantly Designed for Web Monetization</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
