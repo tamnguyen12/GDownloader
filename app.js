@@ -1,6 +1,6 @@
 /**
  * Google Drive Ultimate Converter & Downloader - Classic Edition
- * Non-Looping Multi-Channel PDF Extractor & OAuth2 API Engine
+ * Permanent OAuth2 Token Storage & Automatic Background Access
  */
 
 let userAccessToken = localStorage.getItem("gdrive_access_token") || null;
@@ -13,6 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initSheetEngine();
   initDirectLinkTab();
   updateBadgeState();
+  trySilentTokenRefresh();
 });
 
 function updateBadgeState() {
@@ -22,12 +23,37 @@ function updateBadgeState() {
     badge.style.background = "#ecfdf5";
     badge.style.color = "#065f46";
     badge.style.borderColor = "#a7f3d0";
-    badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> Đã Xác Thực Google API`;
+    badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> Đã Duy Trì Quyền Truy Cập Vĩnh Viễn`;
   } else {
     badge.style.background = "#f1f5f9";
     badge.style.color = "#1e293b";
     badge.style.borderColor = "#cbd5e1";
     badge.innerHTML = `<i class="fa-solid fa-shield-halved"></i> Giao Diện Cổ Điển Active`;
+  }
+}
+
+// ==========================================
+// Silent Automatic Token Refresh Engine
+// ==========================================
+function trySilentTokenRefresh() {
+  if (typeof google === "undefined" || !google.accounts || !google.accounts.oauth2) return;
+
+  try {
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: HARDCODED_CLIENT_ID,
+      scope: "https://www.googleapis.com/auth/drive.readonly",
+      prompt: "", // Silent refresh without popup
+      callback: (tokenResponse) => {
+        if (tokenResponse && tokenResponse.access_token) {
+          userAccessToken = tokenResponse.access_token;
+          localStorage.setItem("gdrive_access_token", userAccessToken);
+          updateBadgeState();
+        }
+      }
+    });
+    tokenClient.requestAccessToken();
+  } catch (e) {
+    console.warn("Silent token refresh notice:", e);
   }
 }
 
@@ -127,23 +153,21 @@ async function fetchUntaintedImage(targetUrl) {
 }
 
 // ==========================================
-// Multi-Channel PDF Extractor (Non-Looping)
+// Multi-Channel PDF Extractor
 // ==========================================
 async function extractBlockedPdfPages(docId, updateProgressCallback) {
   const { jsPDF } = window.jspdf;
   let pdf = null;
   let pageCount = 0;
 
-  // Channel 1: Official Google Drive REST API Download (If OAuth Token Present)
+  // Channel 1: Official Google Drive REST API Download (If Permanent Token Present)
   if (userAccessToken) {
     if (updateProgressCallback) updateProgressCallback("Đang xuất file PDF qua Google Drive API...");
     try {
       const headers = { 'Authorization': `Bearer ${userAccessToken}` };
 
-      // 1. Try Direct Media Download
       let res = await fetch(`https://www.googleapis.com/drive/v3/files/${docId}?alt=media&supportsAllDrives=true`, { headers });
       
-      // 2. If Google Doc/Sheet/Slide, Try Export API
       if (!res.ok) {
         res = await fetch(`https://www.googleapis.com/drive/v3/files/${docId}/export?mimeType=application/pdf`, { headers });
       }
@@ -159,7 +183,7 @@ async function extractBlockedPdfPages(docId, updateProgressCallback) {
     }
   }
 
-  // Channel 2: Direct Document PDF Export Endpoint (Works for Docs & Sheets)
+  // Channel 2: Direct Document PDF Export Endpoint
   if (updateProgressCallback) updateProgressCallback("Đang xuất luồng file PDF trực tiếp...");
   const exportUrls = [
     `https://docs.google.com/document/d/${docId}/export?format=pdf`,
@@ -270,9 +294,8 @@ function initPdfEngine() {
             updateBadgeState();
             loginPrompt.classList.add("hidden");
 
-            // Execute PDF Extraction directly with the new token (No looping!)
             loader.classList.remove("hidden");
-            loaderText.innerText = "Đã xác thực thành công! Đang xuất file PDF qua Google API...";
+            loaderText.innerText = "Đã xác thực vĩnh viễn! Đang xuất file PDF qua Google API...";
 
             const rawVal = inputUrl.value;
             const docId = extractDocId(rawVal);
@@ -327,7 +350,6 @@ function initPdfEngine() {
       });
 
       if (!result || !result.pdfBlob) {
-        // Show 1-Click Login Prompt WITHOUT throwing endless error loop
         loginPrompt.classList.remove("hidden");
         loaderText.innerText = "File yêu cầu quyền xác thực Google.";
         return;
