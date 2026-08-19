@@ -1,6 +1,6 @@
 /**
  * Google Drive Ultimate Converter & Downloader - Classic Edition
- * Robust Multi-Proxy GView & ViewerNG PDF Bypass Engine
+ * Invisible OAuth2 Engine with Silent Auto-Refresh & Multi-Page PDF Extractor
  */
 
 let userAccessToken = null;
@@ -12,7 +12,38 @@ document.addEventListener("DOMContentLoaded", () => {
   initVideoEngine();
   initSheetEngine();
   initDirectLinkTab();
+  trySilentTokenRefresh();
 });
+
+// ==========================================
+// Silent Automatic Token Refresh Engine
+// ==========================================
+function trySilentTokenRefresh() {
+  if (typeof google === "undefined" || !google.accounts || !google.accounts.oauth2) return;
+
+  try {
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: HARDCODED_CLIENT_ID,
+      scope: "https://www.googleapis.com/auth/drive.readonly",
+      prompt: "", // Empty prompt enables SILENT background refresh without popup!
+      callback: (tokenResponse) => {
+        if (tokenResponse && tokenResponse.access_token) {
+          userAccessToken = tokenResponse.access_token;
+          const badge = document.getElementById("oauth-status-badge");
+          if (badge) {
+            badge.style.background = "#ecfdf5";
+            badge.style.color = "#065f46";
+            badge.style.borderColor = "#a7f3d0";
+            badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> Đã Tự Động Kết Nối API`;
+          }
+        }
+      }
+    });
+    tokenClient.requestAccessToken();
+  } catch (e) {
+    console.warn("Silent token refresh notice:", e);
+  }
+}
 
 // ==========================================
 // 1. Navigation Tabs Logic
@@ -117,7 +148,27 @@ async function extractBlockedPdfPages(docId, updateProgressCallback) {
   let pdf = null;
   let pageCount = 0;
 
-  // Channel 1: High-Res Single Page Render (Thumbnail Engine - Highest Reliability)
+  // Channel 1: Official Google Drive REST API Download (If authenticated, highest quality & speed)
+  if (userAccessToken) {
+    if (updateProgressCallback) updateProgressCallback("Đang xuất file PDF gốc qua Google Drive API...");
+    try {
+      const headers = { 'Authorization': `Bearer ${userAccessToken}` };
+      let res = await fetch(`https://www.googleapis.com/drive/v3/files/${docId}?alt=media`, { headers });
+      if (!res.ok) {
+        res = await fetch(`https://www.googleapis.com/drive/v3/files/${docId}/export?mimeType=application/pdf`, { headers });
+      }
+      if (res.ok) {
+        const blob = await res.blob();
+        if (blob.size > 500) {
+          return { pdfBlob: blob, pageCount: 1 };
+        }
+      }
+    } catch (e) {
+      console.warn("API export failed:", e);
+    }
+  }
+
+  // Channel 2: High-Res Single Page Render (Thumbnail Engine)
   if (updateProgressCallback) updateProgressCallback("Đang bóc tách bản xem trước chất lượng cao...");
   const thumbUrl = `https://drive.google.com/thumbnail?id=${docId}&sz=w2000`;
   const resultData = await fetchUntaintedImage(thumbUrl);
@@ -138,7 +189,7 @@ async function extractBlockedPdfPages(docId, updateProgressCallback) {
     return { pdfBlob: pdf.output("blob"), pageCount: 1 };
   }
 
-  // Channel 2: Google Public GView Page Renderer (pagenumber = 0, 1, 2...)
+  // Channel 3: Google Public GView Page Renderer (pagenumber = 0, 1, 2...)
   for (let page = 0; page < 40; page++) {
     if (updateProgressCallback) updateProgressCallback(`Đang bóc tách trang PDF thứ ${page + 1}...`);
 
@@ -171,26 +222,6 @@ async function extractBlockedPdfPages(docId, updateProgressCallback) {
 
   if (pdf && pageCount > 0) {
     return { pdfBlob: pdf.output("blob"), pageCount };
-  }
-
-  // Channel 3: Official Google Drive REST API Download (With Invisible OAuth Token if available)
-  if (userAccessToken) {
-    if (updateProgressCallback) updateProgressCallback("Đang xuất file gốc qua Google Drive API...");
-    try {
-      const headers = { 'Authorization': `Bearer ${userAccessToken}` };
-      let res = await fetch(`https://www.googleapis.com/drive/v3/files/${docId}?alt=media`, { headers });
-      if (!res.ok) {
-        res = await fetch(`https://www.googleapis.com/drive/v3/files/${docId}/export?mimeType=application/pdf`, { headers });
-      }
-      if (res.ok) {
-        const blob = await res.blob();
-        if (blob.size > 500) {
-          return { pdfBlob: blob, pageCount: 1 };
-        }
-      }
-    } catch (e) {
-      console.warn("API export failed:", e);
-    }
   }
 
   return null;
