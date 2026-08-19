@@ -1,7 +1,9 @@
 /**
  * Google Drive Ultimate Converter & Downloader - Classic Edition
- * Zero-Login Multi-Channel Automatic Extraction Engine
+ * Seamless 3-Step Pipeline: Token API -> Multi-Channel Extraction -> OAuth Popup
  */
+
+const HARDCODED_CLIENT_ID = "320285917989-67taet5ij4pnfnk7ei1uqr9q8s70q5v9.apps.googleusercontent.com";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTabs();
@@ -107,14 +109,42 @@ async function fetchUntaintedImage(targetUrl) {
 }
 
 // ==========================================
-// Zero-Login Multi-Channel PDF Extractor
+// Fetch File via Google Drive REST API v3
+// ==========================================
+async function fetchViaDriveAPI(docId, token) {
+  if (!token) return null;
+  try {
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    // 1. Try direct binary download
+    let res = await fetch(`https://www.googleapis.com/drive/v3/files/${docId}?alt=media&supportsAllDrives=true`, { headers });
+
+    // 2. If Google Doc/Sheet/Slide, try export to PDF
+    if (!res.ok) {
+      res = await fetch(`https://www.googleapis.com/drive/v3/files/${docId}/export?mimeType=application/pdf`, { headers });
+    }
+
+    if (res.ok) {
+      const blob = await res.blob();
+      if (blob.size > 500) {
+        return blob;
+      }
+    }
+  } catch (e) {
+    console.warn("Drive API fetch error:", e);
+  }
+  return null;
+}
+
+// ==========================================
+// Multi-Channel Anonymous PDF Extractor
 // ==========================================
 async function extractBlockedPdfPages(docId, updateProgressCallback) {
   const { jsPDF } = window.jspdf;
   let pdf = null;
   let pageCount = 0;
 
-  // Channel 1: High-Res Thumbnail Engine (Instant & Ultra-Reliable)
+  // Channel 1: High-Res Thumbnail Engine
   if (updateProgressCallback) updateProgressCallback("Đang bóc tách bản xem trước chất lượng cao...");
   const thumbUrls = [
     `https://drive.google.com/thumbnail?id=${docId}&sz=w2000`,
@@ -136,11 +166,11 @@ async function extractBlockedPdfPages(docId, updateProgressCallback) {
       pdf = new jsPDF({ orientation, unit: "px", format: [img.width, img.height], hotfixes: ["px_scaling"] });
       pdf.addImage(imgData, "JPEG", 0, 0, img.width, img.height);
 
-      return { pdfBlob: pdf.output("blob"), pageCount: 1, source: "High-Res Image Engine" };
+      return { pdfBlob: pdf.output("blob"), pageCount: 1, source: "High-Res Thumbnail" };
     }
   }
 
-  // Channel 2: Google ViewerNG Page Renderer (pagenumber = 0, 1, 2...)
+  // Channel 2: Google ViewerNG Page Renderer
   for (let page = 0; page < 40; page++) {
     if (updateProgressCallback) updateProgressCallback(`Đang bóc tách trang PDF thứ ${page + 1}...`);
 
@@ -172,10 +202,10 @@ async function extractBlockedPdfPages(docId, updateProgressCallback) {
   }
 
   if (pdf && pageCount > 0) {
-    return { pdfBlob: pdf.output("blob"), pageCount, source: "ViewerNG Multi-Page" };
+    return { pdfBlob: pdf.output("blob"), pageCount, source: "ViewerNG Render" };
   }
 
-  // Channel 3: Google Public GView Page Renderer (pagenumber = 0, 1, 2...)
+  // Channel 3: Google Public GView Page Renderer
   for (let page = 0; page < 40; page++) {
     if (updateProgressCallback) updateProgressCallback(`Đang bóc tách trang PDF thứ ${page + 1}...`);
 
@@ -207,11 +237,11 @@ async function extractBlockedPdfPages(docId, updateProgressCallback) {
   }
 
   if (pdf && pageCount > 0) {
-    return { pdfBlob: pdf.output("blob"), pageCount, source: "GView Multi-Page" };
+    return { pdfBlob: pdf.output("blob"), pageCount, source: "GView Render" };
   }
 
-  // Channel 4: Direct Export Stream Fallback
-  if (updateProgressCallback) updateProgressCallback("Đang xuất luồng PDF trực tiếp...");
+  // Channel 4: Direct Export Stream
+  if (updateProgressCallback) updateProgressCallback("Đang thử luồng PDF trực tiếp...");
   const exportUrls = [
     `https://drive.google.com/uc?export=download&id=${docId}`,
     `https://docs.google.com/document/d/${docId}/export?format=pdf`,
@@ -224,13 +254,32 @@ async function extractBlockedPdfPages(docId, updateProgressCallback) {
       if (res && res.ok) {
         const blob = await res.blob();
         if (blob.size > 1000 && (blob.type.includes("pdf") || blob.size > 5000)) {
-          return { pdfBlob: blob, pageCount: 1, source: "Direct Export" };
+          return { pdfBlob: blob, pageCount: 1, source: "Direct Stream" };
         }
       }
     } catch (e) {}
   }
 
   return null;
+}
+
+// ==========================================
+// Render PDF Result UI
+// ==========================================
+function renderPdfResult(pdfBlob, docId, sourceName) {
+  const resultBox = document.getElementById("pdf-result-box");
+  const btnDownloadBlob = document.getElementById("btn-download-pdf-blob");
+  const loader = document.getElementById("pdf-loader");
+
+  const blobUrl = URL.createObjectURL(pdfBlob);
+  btnDownloadBlob.href = blobUrl;
+  btnDownloadBlob.download = `gdrive_pdf_${docId.substring(0, 8)}.pdf`;
+
+  document.getElementById("pdf-result-title").innerText = `Đã Tải Thành Công File PDF!`;
+  document.getElementById("pdf-result-sub").innerText = `Tài liệu đã được bóc tách từ ${sourceName || 'Google Drive'} và xuất thành file PDF sắc nét (${(pdfBlob.size / 1024).toFixed(1)} KB).`;
+
+  if (loader) loader.classList.add("hidden");
+  resultBox.classList.remove("hidden");
 }
 
 // ==========================================
@@ -243,7 +292,6 @@ function initPdfEngine() {
   const loaderText = document.getElementById("pdf-loader-text");
   const resultBox = document.getElementById("pdf-result-box");
   const iframe = document.getElementById("pdf-preview-iframe");
-  const btnDownloadBlob = document.getElementById("btn-download-pdf-blob");
 
   btnProcess.addEventListener("click", async () => {
     const rawVal = inputUrl.value;
@@ -256,35 +304,69 @@ function initPdfEngine() {
 
     loader.classList.remove("hidden");
     resultBox.classList.add("hidden");
-    loaderText.innerText = "Đang tự động bóc tách các trang PDF...";
+    loaderText.innerText = "Đang kiểm tra và bóc tách file PDF...";
 
     const previewUrl = `https://drive.google.com/file/d/${docId}/preview`;
     iframe.src = previewUrl;
 
-    try {
-      const result = await extractBlockedPdfPages(docId, (msg) => {
-        loaderText.innerText = msg;
-      });
-
-      if (!result || !result.pdfBlob) {
-        alert("Không thể bóc tách file này tự động. Hãy kiểm tra lại link Google Drive xem đã bật chế độ chia sẻ bất kỳ ai có liên kết chưa nhé!");
+    // STEP 1: Try saved Google OAuth2 Access Token
+    let savedToken = localStorage.getItem("gdrive_access_token");
+    if (savedToken) {
+      loaderText.innerText = "Đang tải file bằng Google Drive API Token...";
+      const apiBlob = await fetchViaDriveAPI(docId, savedToken);
+      if (apiBlob) {
+        renderPdfResult(apiBlob, docId, "Google Drive REST API v3");
         return;
       }
+    }
 
-      const { pdfBlob, pageCount, source } = result;
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      btnDownloadBlob.href = blobUrl;
-      btnDownloadBlob.download = `gdrive_pdf_${docId.substring(0, 8)}.pdf`;
+    // STEP 2: Try anonymous multi-channel extraction
+    const result = await extractBlockedPdfPages(docId, (msg) => {
+      loaderText.innerText = msg;
+    });
 
-      document.getElementById("pdf-result-title").innerText = `Đã Tạo Thành Công File PDF (${pageCount} Trang)!`;
-      document.getElementById("pdf-result-sub").innerText = `Tài liệu đã được bóc tách tự động (${source}) và xuất thành file PDF hoàn chỉnh (${(pdfBlob.size / 1024).toFixed(1)} KB).`;
+    if (result && result.pdfBlob) {
+      renderPdfResult(result.pdfBlob, docId, result.source);
+      return;
+    }
 
-      resultBox.classList.remove("hidden");
-    } catch (err) {
-      console.error("Extraction error:", err);
-      alert("Lỗi bóc tách file: " + err.message);
-    } finally {
+    // STEP 3: If anonymous extraction fails, request Google OAuth2 Token popup!
+    loaderText.innerText = "Mở cửa sổ xác thực Google để xuất file PDF...";
+
+    if (typeof google === "undefined" || !google.accounts || !google.accounts.oauth2) {
       loader.classList.add("hidden");
+      alert("Không thể bóc tách file này ẩn danh. Vui lòng thử lại sau giây lát!");
+      return;
+    }
+
+    try {
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: HARDCODED_CLIENT_ID,
+        scope: "https://www.googleapis.com/auth/drive.readonly",
+        callback: async (tokenResponse) => {
+          if (tokenResponse && tokenResponse.access_token) {
+            const newToken = tokenResponse.access_token;
+            localStorage.setItem("gdrive_access_token", newToken);
+
+            loaderText.innerText = "Đã nhận Token! Đang xuất file PDF...";
+            const apiBlob = await fetchViaDriveAPI(docId, newToken);
+
+            if (apiBlob) {
+              renderPdfResult(apiBlob, docId, "Google Drive REST API v3");
+            } else {
+              loader.classList.add("hidden");
+              alert("Không thể tải file này qua Google API. Vui lòng kiểm tra lại quyền truy cập của file!");
+            }
+          } else {
+            loader.classList.add("hidden");
+            alert("Xác thực không thành công.");
+          }
+        }
+      });
+      tokenClient.requestAccessToken();
+    } catch (err) {
+      loader.classList.add("hidden");
+      alert("Lỗi xác thực Google: " + err.message);
     }
   });
 }
